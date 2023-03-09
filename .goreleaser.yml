@@ -1,4 +1,7 @@
 project_name: node_exporter
+gomod:
+  env:
+    - GOSUMDB=off
 builds:
   - binary: node_exporter
     main: node_exporter.go
