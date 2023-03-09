@@ -1,0 +1,33 @@
+project_name: node_exporter
+builds:
+  - binary: node_exporter
+    main: node_exporter.go
+    goos:
+      - linux
+    goarch:
+      - "amd64"
+      - "arm"
+      - "arm64"
+    goarm:
+      - "6"
+      - "7"
+    flags: -a
+    tags:
+     - netgo
+     - osusergo
+     - static_build
+    ldflags: |
+        -X github.com/prometheus/common/version.Version={{.Version}}
+        -X github.com/prometheus/common/version.Revision={{.FullCommit}}
+        -X github.com/prometheus/common/version.Branch={{.Branch}}
+        -X github.com/prometheus/common/version.BuildUser={{.Env.USER}}@{{.Env.HOSTNAME}}
+        -X github.com/prometheus/common/version.BuildDate={{time "20060102-15:04:05"}}
+archives:
+  - id: tarball
+    builds:
+      - "node_exporter"
+    format: "tar.gz"
+    wrap_in_directory: true
+    files:
+      - LICENSE
+      - NOTICE
