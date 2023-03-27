@@ -19,6 +19,7 @@ require (
 	github.com/mdlayher/ethtool v0.0.0-20220830195143-0e16326d06d1
 	github.com/mdlayher/netlink v1.7.0
 	github.com/mdlayher/wifi v0.0.0-20220330172155-a44c70b6d3c8
+	github.com/ncabatoff/process-exporter v0.7.10
 	github.com/opencontainers/selinux v1.10.2
 	github.com/prometheus/client_golang v1.14.0
 	github.com/prometheus/client_model v0.3.0
@@ -47,7 +48,9 @@ require (
 	github.com/mdlayher/genetlink v1.2.0 // indirect
 	github.com/mdlayher/socket v0.4.0 // indirect
 	github.com/mwitkow/go-conntrack v0.0.0-20190716064945-2f068394615f // indirect
+	github.com/ncabatoff/go-seq v0.0.0-20180805175032-b08ef85ed833 // indirect
 	github.com/siebenmann/go-kstat v0.0.0-20210513183136-173c9b0a9973 // indirect
+	github.com/stretchr/testify v1.8.2 // indirect
 	go.uber.org/atomic v1.7.0 // indirect
 	go.uber.org/multierr v1.6.0 // indirect
 	golang.org/x/crypto v0.0.0-20221012134737-56aed061732a // indirect
@@ -58,5 +61,4 @@ require (
 	google.golang.org/appengine v1.6.7 // indirect
 	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

@@ -37,3 +37,5 @@ collector/fixtures/sys/
 collector/fixtures/udev/
 
 /vendor
+.dist
+dist/

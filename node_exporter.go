@@ -14,6 +14,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	stdlog "log"
 	"net/http"
@@ -22,6 +23,7 @@ import (
 	"os/user"
 	"runtime"
 	"sort"
+	"strings"
 
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
@@ -35,6 +37,9 @@ import (
 	"github.com/prometheus/exporter-toolkit/web"
 	"github.com/prometheus/exporter-toolkit/web/kingpinflag"
 	"github.com/prometheus/node_exporter/collector"
+
+	pcollector "github.com/ncabatoff/process-exporter/collector"
+	pconfig "github.com/ncabatoff/process-exporter/config"
 	kingpin "gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -142,7 +147,81 @@ func (h *handler) innerHandler(filters ...string) (http.Handler, error) {
 	return handler, nil
 }
 
+// Handle process-exporter
+func parseMatcher(matcher string) (pconfig.MatcherGroup, error) {
+	if len(matcher) == 0 {
+		return pconfig.MatcherGroup{}, errors.New("Nil Matcher")
+	}
+
+	parts := strings.SplitN(matcher, ",", 3)
+	mg := pconfig.MatcherGroup{}
+
+	if len(parts) == 1 {
+		mg.Name = parts[0]
+		mg.ExeRules = []string{parts[0]}
+		return mg, nil
+	}
+
+	if len(parts) == 2 {
+		mg.Name = parts[1]
+		mg.ExeRules = []string{parts[0]}
+		return mg, nil
+	}
+
+	if len(parts) == 3 {
+		mg.Name = parts[2]
+		mg.ExeRules = []string{parts[0]}
+		mg.CmdlineRules = []string{parts[1]}
+	}
+	return mg, nil
+}
+
+func newProcessExporterConfig(logger log.Logger, matchers []string) (*pconfig.Config, error) {
+	var rules pconfig.MatcherRules
+	rules = []pconfig.MatcherGroup{}
+
+	for _, matcher := range matchers {
+		if matcher == "" {
+			continue
+		}
+
+		mg, err := parseMatcher(matcher)
+		if err != nil {
+			level.Error(logger).Log("PE_PARSE_ERROR", matcher)
+			continue
+		}
+
+		rules = append(rules, mg)
+	}
+
+	return rules.ToConfig()
+}
+
+func newProcessExporter(logger log.Logger, matchers []string) (*pcollector.NamedProcessCollector, error) {
+	config, err := newProcessExporterConfig(logger, matchers)
+	if err != nil {
+		return nil, err
+	}
+
+	return pcollector.NewProcessCollector(
+		pcollector.ProcessCollectorOption{
+			ProcFSPath:  "/proc",
+			Children:    true,
+			Threads:     true,
+			GatherSMaps: true,
+			Namer:       config.MatchNamers,
+			Recheck:     false,
+			Debug:       false,
+		},
+	)
+}
+
 func main() {
+	var processMatcher = kingpin.Flag(
+		"process.matcher",
+		"Process matcher for process-exporter",
+	).Default("").Strings()
+
 	var (
 		metricsPath = kingpin.Flag(
 			"web.telemetry-path",
@@ -174,6 +253,8 @@ func main() {
 	kingpin.Parse()
 	logger := promlog.New(promlogConfig)
 
+	pc, _ := newProcessExporter(logger, *processMatcher)
+
 	if *disableDefaultCollectors {
 		collector.DisableDefaultCollectors()
 	}
@@ -185,7 +266,12 @@ func main() {
 	runtime.GOMAXPROCS(*maxProcs)
 	level.Debug(logger).Log("msg", "Go MAXPROCS", "procs", *maxProcs)
 
-	http.Handle(*metricsPath, newHandler(!*disableExporterMetrics, *maxRequests, logger))
+	h := newHandler(!*disableExporterMetrics, *maxRequests, logger)
+	if pc != nil {
+		h.exporterMetricsRegistry.MustRegister(pc)
+	}
+
+	http.Handle(*metricsPath, h)
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
 			<head><title>Node Exporter</title></head>
